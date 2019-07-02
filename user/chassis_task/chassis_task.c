@@ -32,12 +32,17 @@ chassis_move_t chassis_move;
 int32_t chassis_dis;
 static int16_t shoot_speed_send = 0;
 extern uint8_t autoshoot_open;
+uint8_t lose_rc;
+uint8_t fric_power;
+static uint8_t open_fric = 0;
+static uint32_t fric_time = 0;
 //底盘任务空间剩余量
 uint32_t chassis_high_water;
 void chassis_task(void *pvParameters)
 {
 	//空闲一段时间
   vTaskDelay(8000);
+	open_fric = 0;
 	//底盘初始化
 	chassis_init(&chassis_move);
 	while(1)
@@ -45,7 +50,25 @@ void chassis_task(void *pvParameters)
 		//底盘控制量设置
 		chassis_set_contorl(&chassis_move);
 		//底盘速度发送
-		if(chassis_move.chassis_RC->rc.s[0] == 1)
+		if(fric_power == 3)
+		{
+			open_fric = 1;
+			fric_time = 0;
+		}
+		else
+		{
+			fric_time++;
+			if(fric_time > 2000)
+			{
+				open_fric = 0;
+			}
+		}
+		
+		if(open_fric == 1)
+		{
+			shoot_speed_send = 1000;
+		}
+		else if(chassis_move.chassis_RC->rc.s[0] == 3)
 		{
 			ramp_init(&chassis_move.ramp_reduce, 0.4, 250, 0);
 			ramp_calc(&chassis_move.ramp_add, 1);			

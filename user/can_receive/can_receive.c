@@ -4,6 +4,7 @@
 //拨弹电机数据读取
 
 extern int32_t chassis_dis;
+extern uint8_t fric_power;
 //声明电机变量
 static motor_measure_t motor_yaw, motor_pit, motor_trigger;
 //陀螺仪变量
@@ -36,6 +37,12 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 				{
 					//处理电机数据宏函数
 					get_gimbal_motor_measuer(&motor_pit, Data);
+					break;
+				}	
+				case 0x301:
+				{
+					//处理电机数据宏函数
+					fric_power = Data[0];
 					break;
 				}	
 				default:
@@ -151,7 +158,7 @@ void CAN_CMD_CHASSIS(int16_t shoot_speed, float chassis_speed, uint8_t shoot, ui
 	Data[0] = shoot_speed >> 8;
 	Data[1] = shoot_speed;
 	Data[2] = chassis_speed_send >> 8;
-	Data[3] = chassis_speed_send;;
+	Data[3] = chassis_speed_send;
 	Data[4] = shoot;
 	Data[5] = 0;
 	Data[6] = control;

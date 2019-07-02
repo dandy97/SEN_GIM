@@ -34,6 +34,7 @@
 //云台控制所有相关数据
 static Gimbal_Control_t gimbal_control ;
 
+extern uint8_t lose_rc;
 uint32_t gimbal_high_water;
 uint8_t autoshoot_open;
 
@@ -121,7 +122,7 @@ void GIMBAL_set_contorl(Gimbal_Control_t *gimbal_set_control)
 	}
 	
 	//遥控右边拨杆拨到最上为自动模式
-	if(gimbal_set_control->gimbal_rc_ctrl->rc.s[0] == 1)
+	if(gimbal_set_control->gimbal_rc_ctrl->rc.s[0] == 3)
 	{
 		if(gimbal_set_control->auto_shoot_point->find == 1)
 		{
@@ -178,9 +179,14 @@ void GIMBAL_set_contorl(Gimbal_Control_t *gimbal_set_control)
 	//如果云台系统当前时间减去进入遥控中断当前时间，说明没有收到遥控信号
 	if((gimbal_system_time - gimbal_set_control->gimbal_rc_ctrl->time) > 88)
 	{
+		lose_rc = 1;
 		gimbal_set_control->gimbal_pitch_motor.gyro_angle_set = -gimbal_set_control->gimbal_pitch_motor.gyro_angle;
 		gimbal_set_control->gimbal_yaw_motor.gyro_angle_set = gimbal_set_control->gimbal_yaw_motor.gyro_angle;
 		ramp_init(&gimbal_set_control->gimbal_pitch_motor.ramp, 0.001, 1, -1);
+	}
+	else
+	{
+		lose_rc = 0;
 	}
 	
 	//云台pit角度输入限幅 0° ~ -33°
