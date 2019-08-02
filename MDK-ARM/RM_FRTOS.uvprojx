@@ -337,7 +337,7 @@
               <MiscControls></MiscControls>
               <Define>STM32F407xx,USE_HAL_DRIVER,USE_STDPERIPH_DRIVER,ARM_MATH_CM4,__CC_ARM,ARM_MATH_M</Define>
               <Undefine></Undefine>
-              <IncludePath>../Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Middlewares/Third_Party/FreeRTOS/Source/include;../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS;../Drivers/CMSIS/Include;..\user\led;..\user\can;..\user\can_receive;..\user\usart1;..\user\start_task;..\user\chassis_task;..\user\pid;..\user\rc;..\user\user_lib;..\user\DSP;..\user\DSP\Include;..\user\user_task;..\user\gimbal_task;..\user\gyro_task;..\user\shoot;..\user\auto_shoot;..\user\judg_info;..\user\ramp;..\user\fric</IncludePath>
+              <IncludePath>../Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Middlewares/Third_Party/FreeRTOS/Source/portable/RVDS/ARM_CM4F;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Middlewares/Third_Party/FreeRTOS/Source/include;../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS;../Drivers/CMSIS/Include;..\user\led;..\user\can;..\user\can_receive;..\user\usart1;..\user\start_task;..\user\chassis_task;..\user\pid;..\user\rc;..\user\user_lib;..\user\DSP;..\user\DSP\Include;..\user\user_task;..\user\gimbal_task;..\user\gyro_task;..\user\shoot;..\user\auto_shoot;..\user\judg_info;..\user\ramp;..\user\fric;..\user\kalman</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -610,6 +610,11 @@
               <FileName>user_lib.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\user\user_lib\user_lib.c</FilePath>
+            </File>
+            <File>
+              <FileName>kalman_filter.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\user\kalman\kalman_filter.c</FilePath>
             </File>
           </Files>
         </Group>

@@ -16,7 +16,7 @@ static TaskHandle_t StartTask_Handler;
 
 //云台任务句柄
 #define GIMBAL_TASK_PRIO 19
-#define GIMBAL_STK_SIZE 512
+#define GIMBAL_STK_SIZE 2048
 TaskHandle_t GIMBALTask_Handler;
 
 //底盘任务句柄
@@ -24,7 +24,7 @@ TaskHandle_t GIMBALTask_Handler;
 #define Chassis_STK_SIZE 512
 TaskHandle_t ChassisTask_Handler;
 
-//用户任务句柄
+//用户任务句柄      
 #define User_TASK_PRIO 4
 #define User_STK_SIZE 256
 static TaskHandle_t UserTask_Handler;

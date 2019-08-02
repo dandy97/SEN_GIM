@@ -64,12 +64,13 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 			{
 				case 101:
 				{
-					static int16_t pitch_connt = 0;
-					static int16_t raw_v_x, raw_v_z, raw_pit = 0;
-					static float pitch_angle, last_pitch_angle = 0;
+					static int16_t pitch_connt, yaw_connt = 0;
+					static int16_t raw_v_x, raw_v_z, raw_pit, raw_yaw = 0;
+					static float pitch_angle, last_pitch_angle, yaw_angle, last_yaw_angle = 0;
 					raw_v_x = Data[0]<<8 | Data[1];
 					raw_v_z = Data[2]<<8 | Data[3];
 					raw_pit = Data[4]<<8 | Data[5];
+					raw_yaw = Data[6]<<8 | Data[7];
 					
 					//陀螺仪原始数据是弧度，把弧度转换为角度
 					gyro_info.v_x = (float)raw_v_x * 0.057295f;
@@ -77,6 +78,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 					
 					//陀螺仪原始数据被乘了100倍
 					pitch_angle = (float)raw_pit/100;
+					yaw_angle = (float)raw_yaw/100;
 					
 					//pit角度没有负值
 					if(pitch_angle < 0)
@@ -90,13 +92,20 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 					else if((pitch_angle - last_pitch_angle) < -330)
 						pitch_connt++;
 					
+					if((yaw_angle - last_yaw_angle) > 330)
+						yaw_connt--;
+					else if((yaw_angle - last_yaw_angle) < -330)
+						yaw_connt++;
+					
 					gyro_info.pit = pitch_angle + pitch_connt * 360;
 					last_pitch_angle = pitch_angle;
+					gyro_info.yaw = yaw_angle + yaw_connt * 360;
+					last_yaw_angle = yaw_angle;
 					break;
 				}
 				case 0x401:
 				{
-					gyro_info.yaw = (float)(0.008571428571f)*((int32_t)(Data[0]<<24)|(int32_t)(Data[1]<<16) | (int32_t)(Data[2]<<8) | (int32_t)(Data[3])); 
+					//gyro_info.yaw = (float)(0.008571428571f)*((int32_t)(Data[0]<<24)|(int32_t)(Data[1]<<16) | (int32_t)(Data[2]<<8) | (int32_t)(Data[3])); 
 					break;
 				}
 //				case 0x80:
@@ -216,22 +225,22 @@ void CAN_CMD_SHOOT(int16_t shoot_speed)//(1000~1500)
 //发送陀螺仪控制命令 陀螺仪接收ID：100; mode:0x30为校准模式，time为校准时间，1000ms左右就行。
 void CAN_CMD_GYRO_CALI(uint8_t mode, uint16_t time)
 {
-//	uint8_t Data[8];
-//	uint32_t pTxMailbox;
-//	CAN_TxHeaderTypeDef TxMeg;
-//	
-//	TxMeg.StdId = 0x404;
-//	TxMeg.IDE = CAN_ID_STD;
-//	TxMeg.RTR = CAN_RTR_DATA;
-//	TxMeg.DLC = 0x08;
-//  Data[0] = 0;
-//	Data[1] = 1;
-//  Data[2] = 2 ;
-//	Data[3] = 3;
-//	Data[4] = 4;
-//	Data[5] = 5;
-//	Data[6] = 6;
-//	Data[7] = 7;
+	uint8_t Data[8];
+	uint32_t pTxMailbox;
+	CAN_TxHeaderTypeDef TxMeg;
+	
+	TxMeg.StdId = 100;
+	TxMeg.IDE = CAN_ID_STD;
+	TxMeg.RTR = CAN_RTR_DATA;
+	TxMeg.DLC = 0x08;
+  Data[0] = mode;
+	Data[1] =  time >> 8;
+  Data[2] = time ;
+	Data[3] = 3;
+	Data[4] = 4;
+	Data[5] = 5;
+	Data[6] = 6;
+	Data[7] = 7;
 	
 	//10ms内一直发送校准指令给陀螺仪
 	uint32_t tickstart = HAL_GetTick();
@@ -244,7 +253,7 @@ void CAN_CMD_GYRO_CALI(uint8_t mode, uint16_t time)
 
   while((HAL_GetTick() - tickstart) < wait)
   {
-	 // HAL_CAN_AddTxMessage(&hcan2, &TxMeg, Data, &pTxMailbox);
+	  HAL_CAN_AddTxMessage(&hcan2, &TxMeg, Data, &pTxMailbox);
   }
 }
 

@@ -60,5 +60,6 @@ rm_frtos\start_task.o: ..\user\rc\rc.h
 rm_frtos\start_task.o: ..\user\auto_shoot\auto_shoot.h
 rm_frtos\start_task.o: ..\user\user_lib\user_lib.h
 rm_frtos\start_task.o: ..\user\pid\pid.h
+rm_frtos\start_task.o: ..\user\kalman\kalman_filter.h
 rm_frtos\start_task.o: ..\user\chassis_task\chassis_task.h
 rm_frtos\start_task.o: ..\user\user_task\user_task.h

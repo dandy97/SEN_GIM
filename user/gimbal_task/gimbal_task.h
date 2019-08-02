@@ -8,6 +8,7 @@
 #include "auto_shoot.h"
 #include "user_lib.h"
 #include "pid.h"
+#include "kalman_filter.h"
 
 //yaw,pitch控制通道以及状态开关通道
 #define YawChannel 2
@@ -16,7 +17,7 @@
 #define RC_deadband 10
 //yaw，pitch角度与遥控器输入比例
 #define Yaw_RC_SEN -0.0006f
-#define Pitch_RC_SEN -0.0003f //0.005
+#define Pitch_RC_SEN -0.0005f //0.005
 
 //pitch 角度环 
 #define PITCH_GYRO_PID_KP 0.0f
@@ -58,6 +59,7 @@ typedef struct
 {
     const motor_measure_t *gimbal_motor_measure;
 		
+		kalman kalman_t;
 		ramp_function_source_t ramp;
 //    Gimbal_PID_t gimbal_motor_absolute_angle_pid;
 //    Gimbal_PID_t gimbal_motor_relative_angle_pid;
@@ -82,6 +84,7 @@ typedef struct
     float motor_speed;
     float raw_cmd_current;
     float current_set;
+		float start_angle;
     int16_t given_current;
 
 } Gimbal_Motor_t;

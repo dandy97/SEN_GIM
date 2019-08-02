@@ -48,6 +48,7 @@ rm_frtos\gimbal_task.o: ..\user\rc\rc.h
 rm_frtos\gimbal_task.o: ..\user\auto_shoot\auto_shoot.h
 rm_frtos\gimbal_task.o: ..\user\user_lib\user_lib.h
 rm_frtos\gimbal_task.o: ..\user\pid\pid.h
+rm_frtos\gimbal_task.o: ..\user\kalman\kalman_filter.h
 rm_frtos\gimbal_task.o: ../Inc/FreeRTOSConfig.h
 rm_frtos\gimbal_task.o: ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h
 rm_frtos\gimbal_task.o: e:\Keil_v5\ARM\ARMCC\Bin\..\include\stddef.h

@@ -2,8 +2,9 @@
 
 
 UART_HandleTypeDef huart6;
-static uint8_t Rx_data[3][36];
+static uint8_t Rx_data[3][50];
 static auto_shoot_data_t auto_shoot_data;
+static uint16_t pc_count= 36;
 
 void Auto_Shoot_Init(void)
 {
@@ -20,7 +21,7 @@ void Auto_Shoot_Init(void)
 	__HAL_UART_ENABLE_IT(&huart6,UART_IT_RXNE);
 	__HAL_UART_ENABLE_IT(&huart6,UART_IT_IDLE);
 	SET_BIT(huart6.Instance->CR1, USART_CR1_IDLEIE);
-	HAL_UART_Receive_DMA(&huart6, (uint8_t *)Rx_data, 1000);	
+	HAL_UART_Receive_DMA(&huart6, (uint8_t *)Rx_data, pc_count);	
 }
 
 void USART6_IRQHandler(void)
@@ -34,29 +35,30 @@ void USART6_IRQHandler(void)
 		CLEAR_BIT(huart6.Instance->SR, USART_SR_IDLE); //IDLE位清零
 		__HAL_DMA_DISABLE(huart6.hdmarx);
 		uint16_t temp = huart6.hdmarx->Instance->NDTR;  //要传输的剩余数据项数
-		if((1000 - temp) == 9)//传输数组长度 - 传输的剩余数据项数
+		if((pc_count - temp) == 9)//传输数组长度 - 传输的剩余数据项数
 		{
 			if((Rx_data[0][0]==0xaa)&&(Rx_data[0][8]==0xbb))
 			{
 				auto_shoot_data.find = Rx_data[0][5];
 				if(Rx_data[0][5] == 1)//是否看见
 				{
-					auto_shoot_data.auto_pit = (float)((short)(Rx_data[0][2]<<8 | Rx_data[0][1]) / 100.0f);  //pit
-					auto_shoot_data.auto_yaw = (float)((short)(Rx_data[0][4]<<8 | Rx_data[0][3]) / 100.0f); 	 //yaw	
+					auto_shoot_data.auto_pit = (float)((short)(Rx_data[0][2]<<8 | Rx_data[0][1]) *90/ 32767.0f);  //pit
+					auto_shoot_data.auto_yaw = (float)((short)(Rx_data[0][4]<<8 | Rx_data[0][3]) *90/ 32767.0f); 	 //yaw	
+					//printf("%f %f\r\n",auto_shoot_data.auto_pit, auto_shoot_data.auto_yaw);
 				}
-				else
-				{
-					auto_shoot_data.auto_pit = 0;  
-					auto_shoot_data.auto_yaw = 0; 	 
-				}
+//				else
+//				{
+//					auto_shoot_data.auto_pit = 0;  
+//					auto_shoot_data.auto_yaw = 0; 	 
+//				}
 				auto_shoot_data.cat_walk = Rx_data[0][6];
 				auto_shoot_data.go_point = Rx_data[0][7];
 			}
 		}
-		HAL_UART_Receive_DMA(&huart6, (uint8_t *)Rx_data, 1000);
+		HAL_UART_Receive_DMA(&huart6, (uint8_t *)Rx_data, pc_count);
 		SET_BIT(huart6.Instance->CR1, USART_CR1_IDLEIE);
 		DMA1->HIFCR = DMA_FLAG_DMEIF1_5 | DMA_FLAG_FEIF1_5 | DMA_FLAG_HTIF1_5 | DMA_FLAG_TCIF1_5 | DMA_FLAG_TEIF1_5;//DMA中断清0
-		__HAL_DMA_SET_COUNTER(huart6.hdmarx, 1000); //重载NDTR位
+		__HAL_DMA_SET_COUNTER(huart6.hdmarx, pc_count); //重载NDTR位
 		__HAL_DMA_ENABLE(huart6.hdmarx);
 	} 
 }

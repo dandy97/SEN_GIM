@@ -53,8 +53,9 @@ void GIMBAL_task(void *pvParameters)
 		//云台控制PID计算
 		GIMBAL_control_loop(&gimbal_control);
 		//printf("%f\r\n",gimbal_control.auto_shoot_point->auto_pit);
-		//Ni_Ming(0xf1,100,0,0,0);
-		//CAN_CMD_GIMBAL(gimbal_control.gimbal_yaw_motor.given_current, gimbal_control.gimbal_pitch_motor.given_current, 0, 0);
+		//Ni_Ming(0xf1, gimbal_control.gimbal_yaw_motor.gyro_angle_set, gimbal_control.gimbal_yaw_motor.gyro_angle, 0, 0);
+		CAN_CMD_GIMBAL(gimbal_control.gimbal_yaw_motor.given_current, gimbal_control.gimbal_pitch_motor.given_current, 0, 0);
+		//CAN_CMD_GIMBAL(0, 0, 0, 0);
 		vTaskDelay(1);
 		gimbal_high_water = uxTaskGetStackHighWaterMark(NULL);
 	}
@@ -73,17 +74,20 @@ void GIMBAL_Init(Gimbal_Control_t *gimbal_init)
 	gimbal_init->gimbal_rc_ctrl = get_remote_control_point();
 	//自瞄数据指针获取
 	gimbal_init->auto_shoot_point = get_auto_shoot_point();
-	//云台pit电机PID初始化
-	GIMBAL_PID_Init(&gimbal_init->gimbal_pitch_motor.gimbal_motor_gyro_pid, 5000, 0, 20, 0, 0);//kp_out ki_out kp ki kd 20 60
-	GIMBAL_PID_Init(&gimbal_init->gimbal_pitch_motor.gimbal_motor_acc_pid, 30000, 0, 80, 0, 0);
+	//云台pit电机PID初始化 
+	GIMBAL_PID_Init(&gimbal_init->gimbal_pitch_motor.gimbal_motor_gyro_pid, 5000, 0, 12, 0, 0);//kp_out ki_out kp ki kd 20 60
+	GIMBAL_PID_Init(&gimbal_init->gimbal_pitch_motor.gimbal_motor_acc_pid, 30000, 0, 70, 0, 0);
 	//云台yaw电机PID初始化
-	GIMBAL_PID_Init(&gimbal_init->gimbal_yaw_motor.gimbal_motor_gyro_pid, 5000, 0, 15, 0, 0);//kp_out ki_out kp ki kd
-	GIMBAL_PID_Init(&gimbal_init->gimbal_yaw_motor.gimbal_motor_acc_pid, 30000, 0, 30, 0, 0);
+	GIMBAL_PID_Init(&gimbal_init->gimbal_yaw_motor.gimbal_motor_gyro_pid, 1500, 0, 20, 0, 0);//kp_out ki_out kp ki kd
+	GIMBAL_PID_Init(&gimbal_init->gimbal_yaw_motor.gimbal_motor_acc_pid, 4000, 0, 60, 0, 0);
 	
 	//云台pit电机斜坡初始化
 	ramp_init(&gimbal_init->gimbal_pitch_motor.ramp, 0.001, 1, -1);
 	//云台yaw电机斜坡初始化
 	ramp_init(&gimbal_init->gimbal_yaw_motor.ramp, 0.001, 1, -1);
+	
+	kalman_init(&gimbal_init->gimbal_yaw_motor.kalman_t);
+	gimbal_init->gimbal_yaw_motor.start_angle = gimbal_init->gimbal_gyro_point->yaw;
 }
 
 void GIMBAL_Feedback_Update(Gimbal_Control_t *gimbal_feedback_update)
@@ -96,7 +100,7 @@ void GIMBAL_Feedback_Update(Gimbal_Control_t *gimbal_feedback_update)
     gimbal_feedback_update->gimbal_pitch_motor.gyro_angle = gimbal_feedback_update->gimbal_gyro_point->pit;//pit陀螺仪角度
     gimbal_feedback_update->gimbal_pitch_motor.gyro_acc = gimbal_feedback_update->gimbal_gyro_point->v_x;//pit加速度
 
-    gimbal_feedback_update->gimbal_yaw_motor.gyro_angle = gimbal_feedback_update->gimbal_gyro_point->yaw;//yaw陀螺仪角度
+    gimbal_feedback_update->gimbal_yaw_motor.gyro_angle = gimbal_feedback_update->gimbal_gyro_point->yaw - gimbal_feedback_update->gimbal_yaw_motor.start_angle;//yaw陀螺仪角度
     gimbal_feedback_update->gimbal_yaw_motor.gyro_acc = gimbal_feedback_update->gimbal_gyro_point->v_z;//yaw加速度
 }
 
@@ -106,6 +110,7 @@ static uint32_t gimbal_system_time = 0;
  static uint32_t find_enery = 0;
 void GIMBAL_set_contorl(Gimbal_Control_t *gimbal_set_control)
 {
+	static uint32_t send_info = 0;
 	static int16_t yaw_channel = 0, pitch_channel = 0;
 	//模式切换位 0为遥控模式，1为自动模式
 	static uint8_t mode_change = 0;
@@ -116,9 +121,12 @@ void GIMBAL_set_contorl(Gimbal_Control_t *gimbal_set_control)
 	//获取当前系统时间
 	gimbal_system_time = xTaskGetTickCount();
 	
-	if(gimbal_system_time % 4 == 0)
+	send_info++;
+	if(send_info%10 == 0)
 	{
-		USART6_Transmit(7000,-gimbal_set_control->gimbal_yaw_motor.gyro_angle);
+		//USART6_Transmit(7000,-gimbal_set_control->gimbal_yaw_motor.gyro_angle * 100);
+//		Ni_Ming(0xf1,gimbal_set_control->auto_shoot_point->auto_yaw, gimbal_set_control->gimbal_yaw_motor.gyro_angle_set,\
+		gimbal_set_control->gimbal_yaw_motor.gyro_angle+gimbal_set_control->auto_shoot_point->auto_yaw, 0);
 	}
 	
 	//遥控右边拨杆拨到最上为自动模式
@@ -128,7 +136,11 @@ void GIMBAL_set_contorl(Gimbal_Control_t *gimbal_set_control)
 		{
 			autoshoot_open = 1;
 			find_enery = 0;
-			gimbal_set_control->gimbal_yaw_motor.gyro_angle_set = gimbal_set_control->gimbal_yaw_motor.gyro_angle - gimbal_set_control->auto_shoot_point->auto_yaw;
+			gimbal_set_control->gimbal_yaw_motor.gyro_angle_set = kalman_run(&gimbal_set_control->gimbal_yaw_motor.kalman_t, \
+																																				gimbal_set_control->gimbal_yaw_motor.gyro_angle, \
+																																				gimbal_set_control->auto_shoot_point->auto_yaw);
+			//Ni_Ming(0xf1,gimbal_set_control->gimbal_yaw_motor.gyro_angle_set, gimbal_set_control->gimbal_yaw_motor.gyro_angle, 0, 0);
+			//gimbal_set_control->gimbal_yaw_motor.gyro_angle_set = gimbal_set_control->gimbal_yaw_motor.gyro_angle + gimbal_set_control->auto_shoot_point->auto_yaw;
 			gimbal_set_control->gimbal_pitch_motor.gyro_angle_set = gimbal_set_control->gimbal_pitch_motor.gyro_angle - gimbal_set_control->auto_shoot_point->auto_pit;
 		}	
 		else
@@ -137,23 +149,36 @@ void GIMBAL_set_contorl(Gimbal_Control_t *gimbal_set_control)
 			autoshoot_open = 0;
 			if(find_enery > 1000)
 			{
-				gimbal_set_control->gimbal_yaw_motor.gyro_angle_set += 0.26f;	
-				if(pir_turn == 0)
+				if(gimbal_set_control->gimbal_rc_ctrl->rc.s[1] == 1)
 				{
-					gimbal_set_control->gimbal_pitch_motor.gyro_angle_set -= 0.18f;
-					if(gimbal_set_control->gimbal_pitch_motor.gyro_angle_set < -28.9f)
+					gimbal_set_control->gimbal_yaw_motor.gyro_angle_set += 0.26f;	
+					if(pir_turn == 0)
 					{
-						pir_turn = 1;
+						gimbal_set_control->gimbal_pitch_motor.gyro_angle_set -= 0.18f;
+						if(gimbal_set_control->gimbal_pitch_motor.gyro_angle_set < -28.9f)
+						{
+							pir_turn = 1;
+						}
+					}
+					if(pir_turn == 1)
+					{
+						gimbal_set_control->gimbal_pitch_motor.gyro_angle_set += 0.18f;
+						if(gimbal_set_control->gimbal_pitch_motor.gyro_angle_set > -0.1f)
+						{
+							pir_turn = 0;
+						}
 					}
 				}
-				if(pir_turn == 1)
+				if(gimbal_set_control->gimbal_rc_ctrl->rc.s[1] == 3)
 				{
-					gimbal_set_control->gimbal_pitch_motor.gyro_angle_set += 0.18f;
-					if(gimbal_set_control->gimbal_pitch_motor.gyro_angle_set > -0.1f)
-					{
-						pir_turn = 0;
-					}
+					gimbal_set_control->gimbal_yaw_motor.gyro_angle_set = gimbal_set_control->gimbal_yaw_motor.gyro_angle_set;
+					gimbal_set_control->gimbal_pitch_motor.gyro_angle_set = gimbal_set_control->gimbal_pitch_motor.gyro_angle_set;
 				}
+			}
+			else
+			{
+				gimbal_set_control->gimbal_yaw_motor.gyro_angle_set = gimbal_set_control->gimbal_yaw_motor.gyro_angle_set;
+				gimbal_set_control->gimbal_pitch_motor.gyro_angle_set = gimbal_set_control->gimbal_pitch_motor.gyro_angle_set;
 			}
 		}
 		mode_change = 1;
@@ -172,7 +197,7 @@ void GIMBAL_set_contorl(Gimbal_Control_t *gimbal_set_control)
 			gimbal_set_control->gimbal_pitch_motor.gyro_angle_set = gimbal_set_control->gimbal_pitch_motor.gyro_angle;
 			mode_change = 0;
 		}
-		gimbal_set_control->gimbal_yaw_motor.gyro_angle_set -= yaw_channel * Yaw_RC_SEN;
+		gimbal_set_control->gimbal_yaw_motor.gyro_angle_set += yaw_channel * Yaw_RC_SEN;
 		gimbal_set_control->gimbal_pitch_motor.gyro_angle_set -= pitch_channel * Pitch_RC_SEN;
 	}
 	
@@ -180,23 +205,26 @@ void GIMBAL_set_contorl(Gimbal_Control_t *gimbal_set_control)
 	if((gimbal_system_time - gimbal_set_control->gimbal_rc_ctrl->time) > 88)
 	{
 		lose_rc = 1;
-		gimbal_set_control->gimbal_pitch_motor.gyro_angle_set = -gimbal_set_control->gimbal_pitch_motor.gyro_angle;
+		gimbal_set_control->gimbal_pitch_motor.gyro_angle_set = 0;
 		gimbal_set_control->gimbal_yaw_motor.gyro_angle_set = gimbal_set_control->gimbal_yaw_motor.gyro_angle;
+		gimbal_set_control->gimbal_pitch_motor.gimbal_motor_acc_pid.max_out = 0;
 		ramp_init(&gimbal_set_control->gimbal_pitch_motor.ramp, 0.001, 1, -1);
+		//gimbal_set_control->gimbal_yaw_motor.start_angle = gimbal_set_control->gimbal_gyro_point->yaw;
 	}
 	else
 	{
+		gimbal_set_control->gimbal_pitch_motor.gimbal_motor_acc_pid.max_out = 30000;
 		lose_rc = 0;
 	}
 	
 	//云台pit角度输入限幅 0° ~ -33°
-	if(gimbal_set_control->gimbal_pitch_motor.gyro_angle_set > 0)
+	if(gimbal_set_control->gimbal_pitch_motor.gyro_angle_set > 16.0f)
 	{
-		gimbal_set_control->gimbal_pitch_motor.gyro_angle_set = 0;
+		gimbal_set_control->gimbal_pitch_motor.gyro_angle_set = 16.0f;
 	}
-		if(gimbal_set_control->gimbal_pitch_motor.gyro_angle_set < -35)
+		if(gimbal_set_control->gimbal_pitch_motor.gyro_angle_set < -35.0f)
 	{
-		gimbal_set_control->gimbal_pitch_motor.gyro_angle_set = -35;
+		gimbal_set_control->gimbal_pitch_motor.gyro_angle_set = -35.0f;
 	}
 }
 
@@ -210,8 +238,7 @@ void GIMBAL_control_loop(Gimbal_Control_t *gimbal_control_loop)
 //	gimbal_control_loop->gimbal_yaw_motor.gimbal_motor_acc_pid.Ki = ski;
 //	gimbal_control_loop->gimbal_yaw_motor.gimbal_motor_acc_pid.Kd = skd;
 	//pit电机角度PID计算
-//	Ni_Ming(0xf1,gimbal_control_loop->gimbal_yaw_motor.gyro_angle_set, gimbal_control_loop->gimbal_yaw_motor.gyro_angle, 0, 0);
-	
+//	Ni_Ming(0xf1,gimbal_control_loop->gimbal_yaw_motor.gyro_angle_set, gimbal_control_loop->gimbal_yaw_motor.gyro_angle, gimbal_control_loop->gimbal_yaw_motor.given_current, 0);
 	//斜坡函数输出1后不在计算斜坡函数
 	if(gimbal_control_loop->gimbal_pitch_motor.ramp.out < 1)
 	{
@@ -227,8 +254,8 @@ void GIMBAL_control_loop(Gimbal_Control_t *gimbal_control_loop)
 																																		gimbal_control_loop->gimbal_pitch_motor.gyro_angle * gimbal_control_loop->gimbal_pitch_motor.ramp.out,\
 																																		gimbal_control_loop->gimbal_pitch_motor.gyro_angle_set);
 	//yaw电机角度PID计算
-	gimbal_control_loop->gimbal_yaw_motor.gyro_acc_set = PID_Calc(&gimbal_control_loop->gimbal_yaw_motor.gimbal_motor_gyro_pid, \
-																																 gimbal_control_loop->gimbal_yaw_motor.gyro_angle * gimbal_control_loop->gimbal_yaw_motor.ramp.out, \
+	gimbal_control_loop->gimbal_yaw_motor.gyro_acc_set = -PID_Calc(&gimbal_control_loop->gimbal_yaw_motor.gimbal_motor_gyro_pid, \
+																																 gimbal_control_loop->gimbal_yaw_motor.gyro_angle, \
 																																 gimbal_control_loop->gimbal_yaw_motor.gyro_angle_set);
 
 	//Ni_Ming(0xf1,0, gimbal_control_loop->gimbal_pitch_motor.gyro_angle, 0, 0);

@@ -40,6 +40,7 @@
 "rm_frtos\stm32f4xx_it.o"
 "rm_frtos\freertos.o"
 "rm_frtos\user_lib.o"
+"rm_frtos\kalman_filter.o"
 "rm_frtos\led.o"
 "rm_frtos\can.o"
 "rm_frtos\usart1.o"

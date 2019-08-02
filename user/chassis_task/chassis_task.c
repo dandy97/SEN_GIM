@@ -70,35 +70,35 @@ void chassis_task(void *pvParameters)
 		}
 		else if(chassis_move.chassis_RC->rc.s[0] == 3)
 		{
-			ramp_init(&chassis_move.ramp_reduce, 0.4, 250, 0);
+			ramp_init(&chassis_move.ramp_reduce, 0.4, 140, 0);
 			ramp_calc(&chassis_move.ramp_add, 1);			
 			shoot_speed_send = 1000 + chassis_move.ramp_add.out;
 		}
 		else if(chassis_move.chassis_RC->rc.s[1] == 1)
 		{
-			ramp_init(&chassis_move.ramp_add, 0.4, 250, 0);
+			ramp_init(&chassis_move.ramp_add, 0.4, 140, 0);
 			ramp_calc(&chassis_move.ramp_reduce, 1);
-			shoot_speed_send = 1250 -  chassis_move.ramp_reduce.out;
+			shoot_speed_send = 1140 -  chassis_move.ramp_reduce.out;
 		}
 		else if(chassis_move.chassis_RC->rc.s[1] == 3)
 		{
-			ramp_init(&chassis_move.ramp_reduce, 0.4, 250, 0);
+			ramp_init(&chassis_move.ramp_reduce, 0.4, 140, 0);
 			ramp_calc(&chassis_move.ramp_add, 1);			
 			shoot_speed_send = 1000 + chassis_move.ramp_add.out;
 		}
 		else if(chassis_move.chassis_RC->rc.s[1] == 2)
 		{
-			ramp_init(&chassis_move.ramp_reduce, 0.4, 250, 0);
+			ramp_init(&chassis_move.ramp_reduce, 0.4, 140, 0);
 			ramp_calc(&chassis_move.ramp_add, 1);			
 			shoot_speed_send = 1000 + chassis_move.ramp_add.out;
 		}
 		else
 		{
-			ramp_init(&chassis_move.ramp_add, 0.4, 250, 0);
-			ramp_init(&chassis_move.ramp_add, 0.4, 250, 0);
+			ramp_init(&chassis_move.ramp_add, 0.4, 140, 0);
+			ramp_init(&chassis_move.ramp_add, 0.4, 140, 0);
 			shoot_speed_send = 1000;
 		}
-		TIM4->CCR3 = TIM4->CCR4 = shoot_speed_send;
+		TIM4->CCR1 = TIM4->CCR2 = shoot_speed_send;
  		CAN_CMD_CHASSIS(shoot_speed_send, chassis_move.speed_send, chassis_move.chassis_RC->rc.s[1], chassis_move.chassis_RC->rc.s[0], autoshoot_open);
 		//printf("%f\r\n",chassis_move.speed_send);
 		vTaskDelay(pdMS_TO_TICKS(CHASSIS_CONTROL_TIME_MS));
@@ -191,31 +191,26 @@ void chassis_set_contorl(chassis_move_t *chassis_move_control)
 //发送给工控底盘里程计和云台角度
 void USART6_Transmit(int16_t chassis_dis, int16_t gimabl_angle)
 {
-	static uint8_t SEND_DATA[7]={0};
-	SEND_DATA[0]= 0xaa ;SEND_DATA[6]= 0xbb ;
-	SEND_DATA[1] = (uint8_t)(chassis_dis >> 8);
-	SEND_DATA[2] = (uint8_t)chassis_dis;
-	gimabl_angle *= 1.745;
-	SEND_DATA[3] = (uint8_t)(gimabl_angle >> 8);
-	SEND_DATA[4] = (uint8_t)gimabl_angle;
-	SEND_DATA[5] = 0;
-//	if (*get_gimbal_behaviour_mode_point()==SHOOT_BUFF_MODE)
-//	{
-//		SEND_DATA[1]= 0x01;
-//	}
-//	else
-//	{
-//		SEND_DATA[1]= 0x00;
-//	}
-//	if(GameRobotState.robot_id==0x01)
-//	{
-//		SEND_DATA[2]= 0x01;//红方
-//	}
-//	else
-//	{
-//		SEND_DATA[2]= 0x00;//蓝方
-//	}
-//		SEND_DATA[3]=0;
-//		SEND_DATA[4]=0;
-		HAL_UART_Transmit_DMA(&huart6,SEND_DATA,7);
+	static uint8_t SEND_DATA[9]={0};
+//	SEND_DATA[0] = 0xaa;
+//	SEND_DATA[1] = 0;
+//	SEND_DATA[2] = 0;
+//	SEND_DATA[3] = (uint8_t)(gimabl_angle >> 8);//yaw
+//	SEND_DATA[4] = (uint8_t)gimabl_angle;
+//	SEND_DATA[5] = (uint8_t)(chassis_dis >> 8);
+//	SEND_DATA[6] = (uint8_t)chassis_dis;
+//	SEND_DATA[7] = 0;
+//	SEND_DATA[8] = 0xbb ;
+	
+	SEND_DATA[0] = 0xaa;
+	SEND_DATA[1] = 0;
+	SEND_DATA[2] = 1;
+	SEND_DATA[3] = 2;//yaw
+	SEND_DATA[4] = 3;
+	SEND_DATA[5] = 4;
+	SEND_DATA[6] = 5;
+	SEND_DATA[7] = 6;
+	SEND_DATA[8] = 0xbb ;
+
+	HAL_UART_Transmit_DMA(&huart6,SEND_DATA,9);
 }
